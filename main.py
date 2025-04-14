@@ -1,7 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from models import session, VesselDB, Status
-from config import settings
+from models import session, VesselDB, VesselCreate, VesselUpdate
 
 myApp = FastAPI()
 origins = [
@@ -25,19 +24,12 @@ test on localhost:8000/docs
 
 #CREATE
 @myApp.post("/create")
-async def create_vessel(
-    name: str, 
-    latitude: float, 
-    longitude: float
-    ):
-    vessel = VesselDB(
-        name=name, 
-        latitude=latitude, 
-        longitude=longitude
-        )
+async def create_vessel(vesselCreate: VesselCreate):
+    vessel = VesselDB(**vesselCreate.model_dump())
     session.add(vessel)
     session.commit()
-    return Status(vessel.id, settings.CREATED)
+    session.refresh(vessel)
+    return vessel
 
 #READ (LIST)
 @myApp.get("/")
@@ -48,47 +40,54 @@ async def get_vessels():
 #READ ID
 @myApp.get("/{id}")
 async def get_vessel(id: int):
-    query = session.query(VesselDB).filter(VesselDB.id == id)
-    return query.one_or_none()
+    vessel = session.query(VesselDB).filter(VesselDB.id == id).first()
+    if not vessel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vessel with id {id} not found."
+        )
+    else:
+        return vessel
 
 #UPDATE
 @myApp.put("/update/{id}")
 async def update_vessel(
     id: int,
-    name: str = None,
-    latitude: float = None,
-    longitude: float = None
-    ):
-    query = session.query(VesselDB).filter(VesselDB.id == id)
-    vessel = query.one_or_none()
-    if vessel:
-        change = False
-        if name: 
-            vessel.name = name
-            change = True
-        if latitude: 
-            vessel.latitude = latitude
-            change = True
-        if longitude: 
-            vessel.longitude = longitude
-            change = True
-        if change:
-            session.add(vessel)
-            session.commit()
-            return Status(id, settings.CHANGED)
-        else:
-            return Status(id, settings.UNCHANGED)
+    updates: VesselUpdate):
+    vessel = session.query(VesselDB).filter(VesselDB.id == id).first()
+    if not vessel:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vessel with id {id} not found."
+        )
     else:
-        return Status(id, settings.NOTFOUND)
+        changes = False
+        for field, value in updates.model_dump(exclude_unset=True).items():
+            if hasattr(vessel, field) and getattr(vessel, field) != value:
+                setattr(vessel, field, value)
+                changes = True
+        if changes:
+            session.commit()
+            session.refresh(vessel)
+        return vessel
     
 #DELETE
 @myApp.delete("/delete/{id}")
 async def delete_vessel(id: int):
-    query = session.query(VesselDB).filter(VesselDB.id == id)
-    vessel = query.one_or_none()
+    vessel = session.query(VesselDB).filter(VesselDB.id == id).first()
     if vessel:
+        # Create copy of vessel data
+        vessel_data = {
+            "id": vessel.id,
+            "name": vessel.name,
+            "latitude": vessel.latitude,
+            "longitude": vessel.longitude
+        }
         session.delete(vessel)
         session.commit()
-        return Status(id, settings.DELETED)
+        return VesselDB(**vessel_data)
     else:
-        return Status(id, settings.NOTFOUND)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vessel with id {id} not found."
+        )
