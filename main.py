@@ -1,7 +1,22 @@
 from fastapi import FastAPI
-from sqlalchemyCode import session, VesselDB
+from fastapi.middleware.cors import CORSMiddleware
+from models import session, VesselDB, Status
+from config import settings
 
 myApp = FastAPI()
+origins = [
+    "http://localhost",
+    "http://localhost:8000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:8000"
+]
+myApp.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_credentials = True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
 
 '''
 run with uvicorn main:myApp
@@ -22,7 +37,7 @@ async def create_vessel(
         )
     session.add(vessel)
     session.commit()
-    return {"id": vessel.id, "status": "created"}
+    return Status(vessel.id, settings.CREATED)
 
 #READ (LIST)
 @myApp.get("/")
@@ -60,11 +75,11 @@ async def update_vessel(
         if change:
             session.add(vessel)
             session.commit()
-            return {"id": id, "status": "changed"}
+            return Status(id, settings.CHANGED)
         else:
-            return {"id": id, "status": "unchanged"}
+            return Status(id, settings.UNCHANGED)
     else:
-        return {"id": id, "status": "not found"}
+        return Status(id, settings.NOTFOUND)
     
 #DELETE
 @myApp.delete("/delete/{id}")
@@ -74,6 +89,6 @@ async def delete_vessel(id: int):
     if vessel:
         session.delete(vessel)
         session.commit()
-        return {"id": id, "status": "deleted"}
+        return Status(id, settings.DELETED)
     else:
-        return {"id": id, "status": "not found"}
+        return Status(id, settings.NOTFOUND)
