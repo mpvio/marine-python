@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from models import session, VesselDB, VesselCreate, VesselUpdate
+from sqlalchemy import func
 
 myApp = FastAPI()
 origins = [
@@ -48,6 +49,12 @@ async def get_vessel(id: int):
         )
     else:
         return vessel
+
+#READ NAME
+@myApp.get("/name/{name}")
+async def get_vessels_by_name(name: str):
+    vessels = session.query(VesselDB).filter(func.lower(VesselDB.name) == func.lower(name)).all()
+    return vessels
 
 #UPDATE
 @myApp.put("/update/{id}")
