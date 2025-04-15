@@ -28,11 +28,20 @@ test on localhost:8000/docs
 #CREATE
 @myApp.post("/create")
 async def create_vessel(vesselCreate: VesselCreate):
-    vessel = VesselDB(**vesselCreate.model_dump())
-    session.add(vessel)
-    session.commit()
-    session.refresh(vessel)
-    return vessel
+    try:
+        vessel = VesselDB(**check_vessel(vesselCreate).model_dump())
+        session.add(vessel)
+        session.commit()
+        session.refresh(vessel)
+        return vessel
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create vessel")
 
 #READ (LIST)
 @myApp.get("/")
@@ -47,8 +56,7 @@ async def get_vessel(id: int):
     if not vessel:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vessel with id {id} not found."
-        )
+            detail=f"Vessel with id {id} not found.")
     else:
         return vessel
 
@@ -67,18 +75,27 @@ async def update_vessel(
     if not vessel:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vessel with id {id} not found."
-        )
+            detail=f"Vessel with id {id} not found.")
     else:
         changes = False
-        for field, value in updates.model_dump(exclude_unset=True).items():
-            if hasattr(vessel, field) and getattr(vessel, field) != value:
-                setattr(vessel, field, value)
-                changes = True
-        if changes:
-            session.commit()
-            session.refresh(vessel)
-        return vessel
+        try:
+            for field, value in check_vessel(updates).model_dump(exclude_unset=True).items():
+                if hasattr(vessel, field) and getattr(vessel, field) != value:
+                    setattr(vessel, field, value)
+                    changes = True
+            if changes:
+                session.commit()
+                session.refresh(vessel)
+            return vessel
+        except ValueError as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=str(e))
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to update vessel")
+
     
 #DELETE
 @myApp.delete("/delete/{id}")
@@ -98,5 +115,11 @@ async def delete_vessel(id: int):
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Vessel with id {id} not found."
-        )
+            detail=f"Vessel with id {id} not found.")
+    
+def check_vessel(vessel: VesselCreate | VesselUpdate):
+    if vessel.latitude is not None and not -90 <= vessel.latitude <= 90:
+        raise ValueError('Latitude must be between -90 and 90 degrees')
+    if vessel.longitude is not None and not -180 <= vessel.longitude <= 180:
+        raise ValueError('Longitude must be between -180 and 180 degrees')
+    return vessel
