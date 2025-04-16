@@ -1,7 +1,11 @@
+import datetime
+import os
+import tempfile
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from models import session, VesselDB, VesselCreate, VesselUpdate
 from sqlalchemy import func
+from config import settings
 
 myApp = FastAPI()
 origins = [
@@ -33,6 +37,7 @@ async def create_vessel(vesselCreate: VesselCreate):
         session.add(vessel)
         session.commit()
         session.refresh(vessel)
+        update_last_modified_time()
         return vessel
     except ValueError as e:
         raise HTTPException(
@@ -86,6 +91,7 @@ async def update_vessel(
             if changes:
                 session.commit()
                 session.refresh(vessel)
+                update_last_modified_time()
             return vessel
         except ValueError as e:
             raise HTTPException(
@@ -111,11 +117,25 @@ async def delete_vessel(id: int):
         }
         session.delete(vessel)
         session.commit()
+        update_last_modified_time()
         return VesselDB(**vessel_data)
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vessel with id {id} not found.")
+    
+#GET LAST UPDATE TIME (via text file)
+@myApp.get("/time/")
+def get_last_update_time():
+    try:
+        with open(settings.LAST_UPDATE_FILE, "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "0"
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to read timestamp: {str(e)}")
     
 def check_vessel(vessel: VesselCreate | VesselUpdate):
     if vessel.latitude is not None and not -90 <= vessel.latitude <= 90:
@@ -123,3 +143,13 @@ def check_vessel(vessel: VesselCreate | VesselUpdate):
     if vessel.longitude is not None and not -180 <= vessel.longitude <= 180:
         raise ValueError('Longitude must be between -180 and 180 degrees')
     return vessel
+
+def update_last_modified_time():
+    try:
+        update_time = str(datetime.datetime.now().timestamp())
+        with open(settings.LAST_UPDATE_FILE, mode="w") as time_file:
+            time_file.write(update_time)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update timestamp: {str(e)}")
