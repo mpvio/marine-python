@@ -13,5 +13,6 @@ class VesselDB(Base):
     name = db.Column(db.String(100), nullable=False)
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
+    updateTime = db.Column(db.BigInteger, nullable=False)
 
 Base.metadata.create_all(engine)

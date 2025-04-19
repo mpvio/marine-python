@@ -1,11 +1,8 @@
-import datetime
-import os
-import tempfile
+from time import time
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from models import session, VesselDB, VesselCreate, VesselUpdate
 from sqlalchemy import func
-from config import settings
 
 myApp = FastAPI()
 origins = [
@@ -33,11 +30,10 @@ test on localhost:8000/docs
 @myApp.post("/create")
 async def create_vessel(vesselCreate: VesselCreate):
     try:
-        vessel = VesselDB(**check_vessel(vesselCreate).model_dump())
+        vessel = VesselDB(updateTime = time(), **check_vessel(vesselCreate).model_dump())
         session.add(vessel)
         session.commit()
         session.refresh(vessel)
-        update_last_modified_time()
         return vessel
     except ValueError as e:
         raise HTTPException(
@@ -89,9 +85,9 @@ async def update_vessel(
                     setattr(vessel, field, value)
                     changes = True
             if changes:
+                vessel.updateTime = time()
                 session.commit()
                 session.refresh(vessel)
-                update_last_modified_time()
             return vessel
         except ValueError as e:
             raise HTTPException(
@@ -113,43 +109,33 @@ async def delete_vessel(id: int):
             "id": vessel.id,
             "name": vessel.name,
             "latitude": vessel.latitude,
-            "longitude": vessel.longitude
+            "longitude": vessel.longitude,
+            "updateTime": vessel.updateTime
         }
         session.delete(vessel)
         session.commit()
-        update_last_modified_time()
         return VesselDB(**vessel_data)
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vessel with id {id} not found.")
-    
-#GET LAST UPDATE TIME (via text file)
-@myApp.get("/time/")
-def get_last_update_time():
-    try:
-        with open(settings.LAST_UPDATE_FILE, "r") as f:
-            return f.read()
-    except FileNotFoundError:
-        return "0"
-    except Exception as e:
+
+#get latest update time from DB
+@myApp.get("/latest/")
+def get_latest_update():
+    subqry = session.query(func.max(VesselDB.updateTime))
+    vessel = session.query(VesselDB).filter(VesselDB.updateTime == subqry).first()
+    if vessel:
+        return vessel.updateTime
+    else:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to read timestamp: {str(e)}")
-    
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No vessels found.")
+  
+#helper functions
 def check_vessel(vessel: VesselCreate | VesselUpdate):
     if vessel.latitude is not None and not -90 <= vessel.latitude <= 90:
         raise ValueError('Latitude must be between -90 and 90 degrees')
     if vessel.longitude is not None and not -180 <= vessel.longitude <= 180:
         raise ValueError('Longitude must be between -180 and 180 degrees')
     return vessel
-
-def update_last_modified_time():
-    try:
-        update_time = str(datetime.datetime.now().timestamp())
-        with open(settings.LAST_UPDATE_FILE, mode="w") as time_file:
-            time_file.write(update_time)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to update timestamp: {str(e)}")
