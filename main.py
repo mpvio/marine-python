@@ -3,6 +3,7 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from models import session, VesselDB, VesselCreate, VesselUpdate
 from sqlalchemy import func
+import random
 
 myApp = FastAPI()
 origins = [
@@ -119,6 +120,27 @@ async def delete_vessel(id: int):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vessel with id {id} not found.")
+
+#delete all vessels
+@myApp.delete("/deleteAll/")
+async def delete_all():
+    try:
+        count = session.query(VesselDB).delete()
+        session.commit()
+        return count
+    except:
+        session.rollback()
+        return 0
+    
+@myApp.delete("/deleteHalf/")
+async def delete_half():
+    vessels = session.query(VesselDB).all()
+    delete_count = len(vessels) // 2
+    vessels_to_delete = random.sample(vessels, delete_count)
+    for v in vessels_to_delete:
+        session.delete(v)
+    ids = [v.id for v in vessels_to_delete]
+    return ids
 
 #get latest update time from DB
 @myApp.get("/latest/")
