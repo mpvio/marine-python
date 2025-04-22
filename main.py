@@ -37,10 +37,12 @@ async def create_vessel(vesselCreate: VesselCreate):
         session.refresh(vessel)
         return vessel
     except ValueError as e:
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e))
-    except Exception as e:
+    except:
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create vessel")
@@ -91,10 +93,12 @@ async def update_vessel(
                 session.refresh(vessel)
             return vessel
         except ValueError as e:
+            session.rollback()
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=str(e))
-        except Exception as e:
+        except:
+            session.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to update vessel")
@@ -105,18 +109,11 @@ async def update_vessel(
 async def delete_vessel(id: int):
     vessel = session.query(VesselDB).filter(VesselDB.id == id).first()
     if vessel:
-        # Create copy of vessel data
-        vessel_data = {
-            "id": vessel.id,
-            "name": vessel.name,
-            "latitude": vessel.latitude,
-            "longitude": vessel.longitude,
-            "updateTime": vessel.updateTime
-        }
         session.delete(vessel)
         session.commit()
-        return VesselDB(**vessel_data)
+        return vessel
     else:
+        session.rollback()
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Vessel with id {id} not found.")
@@ -130,17 +127,26 @@ async def delete_all():
         return count
     except:
         session.rollback()
-        return 0
-    
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete vessels")
+
+#delete half (rounded down) of all vessels 
 @myApp.delete("/deleteHalf/")
 async def delete_half():
     vessels = session.query(VesselDB).all()
     delete_count = len(vessels) // 2
     vessels_to_delete = random.sample(vessels, delete_count)
-    for v in vessels_to_delete:
-        session.delete(v)
-    ids = [v.id for v in vessels_to_delete]
-    return ids
+    try:
+        for v in vessels_to_delete:
+            session.delete(v)
+        session.commit()
+        return vessels_to_delete
+    except:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete vessels")
 
 #get latest update time from DB
 @myApp.get("/latest/")
