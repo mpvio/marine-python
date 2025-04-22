@@ -15,4 +15,9 @@ class VesselDB(Base):
     longitude = db.Column(db.Float, nullable=False)
     updateTime = db.Column(db.BigInteger, nullable=False)
 
+class UpdateTimeDB(Base):
+    __tablename__ = "updateTime"
+    id = db.Column(db.Integer, primary_key=True, index=True)
+    updateTime = db.Column(db.BigInteger, nullable=False)
+
 Base.metadata.create_all(engine)
