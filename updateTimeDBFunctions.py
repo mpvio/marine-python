@@ -1,18 +1,22 @@
 from time import time
 from fastapi import HTTPException, status
 from models import session, UpdateTimeDB
+from config import settings
 
 async def update_time():
     current_time = time()
     try:
-        update = session.query(UpdateTimeDB).filter(UpdateTimeDB.id == 1).first()
+        update = session.query(UpdateTimeDB).filter(UpdateTimeDB.id == settings.TIME_RECORD_ID).first()
         if not update:
-            update = UpdateTimeDB(current_time)
+            # if record has not yet been created, create record with fixed ID (currently 1)
+            update = UpdateTimeDB(id = settings.TIME_RECORD_ID, updateTime = current_time)
             session.add(update)
         else: 
+            #else update record with current time
             update.updateTime = current_time
         session.commit()
         session.refresh(update)
+        return update
     except ValueError as e:
         session.rollback()
         raise HTTPException(
@@ -25,7 +29,8 @@ async def update_time():
             detail="Failed to create time record")
     
 async def get_time():
-    update = session.query(UpdateTimeDB).filter(UpdateTimeDB.id == 1).first()
+    # get update record with fixed id (currently 1)
+    update = session.query(UpdateTimeDB).filter(UpdateTimeDB.id == settings.TIME_RECORD_ID).first()
     if not update:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

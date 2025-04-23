@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from models import session, VesselDB, VesselCreate, VesselUpdate
 from sqlalchemy import func
 import random
+import updateTimeDBFunctions as timeDB
 
 myApp = FastAPI()
 origins = [
@@ -33,6 +34,7 @@ async def create_vessel(vesselCreate: VesselCreate):
     try:
         vessel = VesselDB(updateTime = time(), **check_vessel(vesselCreate).model_dump())
         session.add(vessel)
+        await timeDB.update_time()
         session.commit()
         session.refresh(vessel)
         return vessel
@@ -89,6 +91,7 @@ async def update_vessel(
                     changes = True
             if changes:
                 vessel.updateTime = time()
+                await timeDB.update_time()
                 session.commit()
                 session.refresh(vessel)
             return vessel
@@ -110,6 +113,7 @@ async def delete_vessel(id: int):
     vessel = session.query(VesselDB).filter(VesselDB.id == id).first()
     if vessel:
         session.delete(vessel)
+        await timeDB.update_time()
         session.commit()
         return vessel
     else:
@@ -123,6 +127,7 @@ async def delete_vessel(id: int):
 async def delete_all():
     try:
         count = session.query(VesselDB).delete()
+        await timeDB.update_time()
         session.commit()
         return count
     except:
@@ -140,6 +145,7 @@ async def delete_half():
     try:
         for v in vessels_to_delete:
             session.delete(v)
+        await timeDB.update_time()
         session.commit()
         return vessels_to_delete
     except:
@@ -150,15 +156,16 @@ async def delete_half():
 
 #get latest update time from DB
 @myApp.get("/latest/")
-def get_latest_update():
-    subqry = session.query(func.max(VesselDB.updateTime))
-    vessel = session.query(VesselDB).filter(VesselDB.updateTime == subqry).first()
-    if vessel:
-        return vessel.updateTime
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No vessels found.")
+async def get_latest_update():
+    return await timeDB.get_time()
+    # subqry = session.query(func.max(VesselDB.updateTime))
+    # vessel = session.query(VesselDB).filter(VesselDB.updateTime == subqry).first()
+    # if vessel:
+    #     return vessel.updateTime
+    # else:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_404_NOT_FOUND,
+    #         detail=f"No vessels found.")
   
 #helper functions
 def check_vessel(vessel: VesselCreate | VesselUpdate):
