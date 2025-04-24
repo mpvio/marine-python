@@ -174,3 +174,7 @@ def check_vessel(vessel: VesselCreate | VesselUpdate):
     if vessel.longitude is not None and not -180 <= vessel.longitude <= 180:
         raise ValueError('Longitude must be between -180 and 180 degrees')
     return vessel
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run("main:myApp", host="localhost", port=8000, reload=True)
