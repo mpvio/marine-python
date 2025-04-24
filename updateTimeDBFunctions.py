@@ -39,4 +39,5 @@ async def get_time():
         return update.updateTime
     
 async def get_time_records():
+    # for testing
     return session.query(UpdateTimeDB).all()
