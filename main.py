@@ -69,7 +69,7 @@ async def get_vessel(id: int):
 #READ NAME
 @myApp.get("/name/{name}")
 async def get_vessels_by_name(name: str):
-    vessels = session.query(VesselDB).filter(func.lower(VesselDB.name) == func.lower(name)).all()
+    vessels = session.query(VesselDB).filter(func.lower(VesselDB.name).contains(func.lower(name))).all()
     return vessels
 
 #UPDATE
