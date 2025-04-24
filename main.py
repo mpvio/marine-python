@@ -158,14 +158,6 @@ async def delete_half():
 @myApp.get("/latest/")
 async def get_latest_update():
     return await timeDB.get_time()
-    # subqry = session.query(func.max(VesselDB.updateTime))
-    # vessel = session.query(VesselDB).filter(VesselDB.updateTime == subqry).first()
-    # if vessel:
-    #     return vessel.updateTime
-    # else:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_404_NOT_FOUND,
-    #         detail=f"No vessels found.")
   
 #helper functions
 def check_vessel(vessel: VesselCreate | VesselUpdate):
