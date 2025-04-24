@@ -3,8 +3,8 @@ from fastapi import HTTPException, status
 from models import session, UpdateTimeDB
 from config import settings
 
-async def update_time():
-    current_time = time()
+async def update_time(current_time: float = None):
+    if not current_time: current_time = time()
     try:
         update = session.query(UpdateTimeDB).filter(UpdateTimeDB.id == settings.TIME_RECORD_ID).first()
         if not update:

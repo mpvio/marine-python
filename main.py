@@ -32,9 +32,10 @@ test on localhost:8000/docs
 @myApp.post("/create")
 async def create_vessel(vesselCreate: VesselCreate):
     try:
-        vessel = VesselDB(updateTime = time(), **check_vessel(vesselCreate).model_dump())
+        current_time = time()
+        vessel = VesselDB(updateTime = current_time, **check_vessel(vesselCreate).model_dump())
         session.add(vessel)
-        await timeDB.update_time()
+        await timeDB.update_time(current_time)
         session.commit()
         session.refresh(vessel)
         return vessel
@@ -90,8 +91,9 @@ async def update_vessel(
                     setattr(vessel, field, value)
                     changes = True
             if changes:
-                vessel.updateTime = time()
-                await timeDB.update_time()
+                current_time = time()
+                vessel.updateTime = current_time
+                await timeDB.update_time(current_time)
                 session.commit()
                 session.refresh(vessel)
             return vessel
