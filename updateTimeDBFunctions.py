@@ -12,7 +12,7 @@ async def update_time(current_time: float = None):
             update = UpdateTimeDB(id = settings.TIME_RECORD_ID, updateTime = current_time)
             session.add(update)
         else: 
-            #else update record with current time
+            #else update record with current time //
             update.updateTime = current_time
         session.commit()
         session.refresh(update)

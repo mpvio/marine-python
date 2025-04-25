@@ -20,4 +20,4 @@ class UpdateTimeDB(Base):
     id = db.Column(db.Integer, primary_key=True, index=True)
     updateTime = db.Column(db.BigInteger, nullable=False)
 
-Base.metadata.create_all(engine)
+Base.metadata.create_all(engine) #

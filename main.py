@@ -138,7 +138,7 @@ async def delete_all():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete vessels")
 
-#delete half (rounded down) of all vessels 
+#delete half (rounded down) of all vessels //
 @myApp.delete("/deleteHalf/")
 async def delete_half():
     vessels = session.query(VesselDB).all()
